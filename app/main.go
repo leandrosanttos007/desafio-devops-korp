@@ -74,7 +74,9 @@ func projetoKorpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resposta); err != nil {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(resposta); err != nil {
 		http.Error(w, "erro ao gerar resposta", http.StatusInternalServerError)
 		return
 	}

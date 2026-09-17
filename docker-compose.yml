@@ -1,3 +1,5 @@
+name: projeto-korp
+
 services:
   http-server-projeto-korp:
     build:
