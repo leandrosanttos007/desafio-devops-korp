@@ -7,3 +7,4 @@ ansible/*.retry
 # Sistema
 .DS_Store
 *.log
+*:Zone.Identifier
