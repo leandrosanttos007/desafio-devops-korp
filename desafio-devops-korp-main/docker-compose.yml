@@ -1,0 +1,97 @@
+services:
+  http-server-projeto-korp:
+    build:
+      context: ./app
+    image: http-server-projeto-korp:latest
+    container_name: http-server-projeto-korp
+    restart: unless-stopped
+    networks:
+      - korp-net
+    # Requisito: NÃO expor portas diretamente ao host.
+    # A porta 8080 só é alcançável pela rede interna (pelo NGINX).
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  nginx:
+    image: nginx:1.27
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      http-server-projeto-korp:
+        # Só sobe o NGINX depois que o app está saudável — evita o
+        # "host not found in upstream" que derrubava o container em loop.
+        condition: service_healthy
+    networks:
+      - korp-net
+    ports:
+      - "80:80"
+    volumes:
+      # Volume montado no caminho pedido pelo desafio, em modo somente-leitura.
+      - ./nginx:/etc/nginx/conf.d/:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    restart: unless-stopped
+    networks:
+      - korp-net
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - korp-net
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+networks:
+  korp-net:
+    # Rede criada previamente (pelo Ansible ou via "docker network create korp-net").
+    # Marcada como external para que a criação da rede seja um passo explícito.
+    external: true
+    name: korp-net
+
+volumes:
+  prometheus-data:
+  grafana-data:

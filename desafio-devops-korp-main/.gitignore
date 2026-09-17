@@ -1,0 +1,9 @@
+# Go
+app/http-server-projeto-korp
+
+# Ansible
+ansible/*.retry
+
+# Sistema
+.DS_Store
+*.log
